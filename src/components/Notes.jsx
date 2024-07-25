@@ -1,18 +1,25 @@
-
 import {useSelector, useDispatch} from 'react-redux';
 import {selectNotes, eraseNote, addNote} from '../store/notesSlice.js';
+import { collection, query, where, getDocs, doc, deleteDoc, addDoc } from "firebase/firestore";
+import { useEffect, useState } from 'react';
+import { db } from '../firebase/config.js';
 
 function Notes({bookId}) {
     
     const dispatch = useDispatch();
     
-    function handleEraseNote(id) {
+    const handleEraseNote = async (id) => {
       if(confirm('Are you sure you want to erase this note?')) {
-        dispatch(eraseNote(id));
+        try{
+          await deleteDoc(doc(db, "notes", id));
+          setNotes(notes.filter(note => note.id != id));
+        }catch (error) {
+          alert('Error deleting note');
+        }
       }
     }
 
-    function handleAddNote(e) {
+    const handleAddNote = async(e)=>  {
       e.preventDefault();
 
       const newNote = {
@@ -21,17 +28,55 @@ function Notes({bookId}) {
         text: document.querySelector('textarea[name=note]').value
       }
       if (newNote.title && newNote.text) {
-          dispatch(addNote(newNote));
-          document.querySelector('input[name=title]').value = "";
-          document.querySelector('textarea[name=note]').value = "";
+
+        try{
+
+          const docRef = await addDoc(collection(db, "notes"), newNote);
+          newNote.id = docRef.id;
+          setNotes([...notes, newNote]);
+            document.querySelector('input[name=title]').value = "";
+            document.querySelector('textarea[name=note]').value = "";
+
+        }catch (error) {
+          alert('Error adding note');
+        }
       } else {
           alert('Please fill the mandatory fields.');
       }
 
   }
 
-    const notes = useSelector(selectNotes).filter(note => note.book_id == bookId);
-    
+  const fetchNotes = async (book_id) => {
+
+    try {
+
+      const q = query(collection(db, "notes"), where("book_id", "==", book_id));
+
+          const querySnapshot = await getDocs(q);
+          let notesList = [];
+          querySnapshot.forEach((doc) => {
+            notesList.push({...doc.data(), id: doc.id});
+            console.log(doc.id, " => ", doc.data());
+          });
+          setNotes(notesList);
+
+      setFetchStatus("success");
+    }catch(err){
+      console.log('error', err);
+      setFetchStatus("error");
+    }
+  }
+
+    const [notes, setNotes] = useState("");
+    const [fetchStatus, setFetchStatus] = useState("idle");
+
+    useEffect(()=>{
+      if(fetchStatus == 'idle'){
+      fetchNotes(bookId);
+      }
+    }, [])
+  
+
     return (
       <>
 
@@ -51,9 +96,23 @@ function Notes({bookId}) {
                   )}
               </div>
 
-              :
+                    : fetchStatus == 'success' ?
 
-              <p>This books doesn't have notes yet. Use the form below to add a note.</p>
+                  
+                    <div>
+                      <p>This books doesn't have notes yet. Use the form below to add a note.</p>
+                    </div>
+        
+                    : fetchStatus == 'error' ?
+        
+                    <div>
+                      <p>Error fetching the notes.</p>
+                    </div>:
+        
+                    <div>
+                      <p>Loading...</p>
+                    </div>
+  
             }
             
 

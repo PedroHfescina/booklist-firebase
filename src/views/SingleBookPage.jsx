@@ -1,4 +1,3 @@
-
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Notes from '../components/Notes.jsx';
 import {useState, useEffect} from 'react';
@@ -93,10 +92,21 @@ function SingleBookPage() {
               <Notes bookId={id} />
             </div> 
             
-            : 
+            : fetchStatus == 'success' ?
+
             
             <div>
               <p>Book not found. Click the button above to go back to the list of books.</p>
+            </div>
+
+            : fetchBook == 'error' ?
+
+            <div>
+              <p>Error fetching the book.</p>
+            </div>:
+
+            <div>
+              <p>Loading...</p>
             </div>
 
             }
